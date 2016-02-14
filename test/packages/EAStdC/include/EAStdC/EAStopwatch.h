@@ -25,6 +25,10 @@ namespace StdC {
 			kUnitsCPUCycles    =    1,  /// CPU clock ticks (or similar equivalent for the platform). Not recommended for use in shipping softare as many systems alter their CPU frequencies at runtime.
 			kUnitsNanoseconds  =    2,  /// For a 1GHz processor, 1 nanosecond is the same as 1 clock tick.
 			kUnitsMilliseconds =    4,  /// For a 1GHz processor, 1 millisecond is the same as 1,000,000 clock ticks.
+			kUnitsMicroseconds =    6,  
+			kUnitsSeconds =    7,  
+			kUnitsMinutes =    8,  
+			kUnitsUserDefined =    9,  
 		};
 
 	public:
@@ -49,6 +53,11 @@ namespace StdC {
 		/// Stop
 		/// Stops the stopwatch it it was running and retaines the elasped time.
 		void Stop();
+        
+        void Restart();
+        int GetUnits();
+
+        float GetElapsedTimeFloat() const;
 
 		/// GetElapsedTime
 		/// Gets the elapsed time, which properly takes into account any 
@@ -75,6 +84,9 @@ namespace StdC {
 		/// at runtime, especially on x86 PCs with their multiple desynchronized CPUs 
 		/// and variable runtime clock speed.
 		static uint64_t GetCPUCycle();
+
+        static double GetUnitsPerCPUCycle(EA::StdC::Stopwatch::Units);
+        static double GetUnitsPerStopwatchCycle(EA::StdC::Stopwatch::Units);
 
 	private:
 		uint64_t    mnStartTime;                            /// Start time; always in cycles.
@@ -137,6 +149,23 @@ void EA::StdC::Stopwatch::Stop()
 	}
 }
 
+inline
+void EA::StdC::Stopwatch::Restart()
+{
+    mnStartTime = 0;
+    mnTotalElapsedTime = 0;
+    mnUnits = 0;
+    mfStopwatchCyclesToUnitsCoefficient = 0.f;
+
+    Start();
+}
+
+inline
+int EA::StdC::Stopwatch::GetUnits()
+{
+    return mnUnits; 
+}
+
 
 inline
 uint64_t EA::StdC::Stopwatch::GetElapsedTime() const
@@ -162,6 +191,28 @@ uint64_t EA::StdC::Stopwatch::GetElapsedTime() const
 	return (uint64_t)((nFinalTotalElapsedTime64 * mfStopwatchCyclesToUnitsCoefficient) + 0.49999f);
 }
 
+float EA::StdC::Stopwatch::GetElapsedTimeFloat() const
+{
+	uint64_t nFinalTotalElapsedTime64(mnTotalElapsedTime);
+
+	if(mnStartTime) // We we are currently running, then take into account time passed since last start.
+	{
+		uint64_t nCurrentTime;
+
+		// See the 'Stop' function for an explanation of the code below.
+		if(mnUnits == kUnitsCPUCycles)
+			nCurrentTime = GetCPUCycle();
+		else
+			nCurrentTime = GetStopwatchCycle();
+
+		uint64_t nElapsed = nCurrentTime - mnStartTime;
+		nFinalTotalElapsedTime64 += nElapsed;
+
+	} // Now nFinalTotalElapsedTime64 holds the elapsed time in stopwatch cycles. 
+
+	return (nFinalTotalElapsedTime64 * mfStopwatchCyclesToUnitsCoefficient) + 0.49999f;
+}
+
 
 // Other supported processors have fixed-frequency CPUs and thus can 
 // directly use the GetCPUCycle functionality for maximum precision
@@ -170,6 +221,11 @@ inline uint64_t EA::StdC::Stopwatch::GetStopwatchCycle()
 {
 	return GetCPUCycle();
 }
+
+// todo:  implement me.
+inline double EA::StdC::Stopwatch::GetUnitsPerCPUCycle(EA::StdC::Stopwatch::Units) { return 1.0; }
+inline double EA::StdC::Stopwatch::GetUnitsPerStopwatchCycle(EA::StdC::Stopwatch::Units) { return 1.0; }
+
 
 #if defined(EA_PLATFORM_MICROSOFT)
 	#include <windows.h>
@@ -195,6 +251,7 @@ inline uint64_t EA::StdC::Stopwatch::GetStopwatchCycle()
 		return result;
 	}
 #endif
+
 
 
 #endif  // EASTDC_EASTOPWATCH_H
