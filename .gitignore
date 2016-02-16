@@ -6,10 +6,14 @@ tags
 .swo
 -.d
 eastl_build_out
+build.bat
 
 ## CMake generated files
 CMakeCache.txt
 cmake_install.cmake
+
+## Patch files
+*.patch
 
 ## For Visual Studio Generated projects
 *.sln
